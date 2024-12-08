@@ -148,7 +148,7 @@ def interactive_job_filter(df):
         st.warning("No jobs found matching the selected filters.")
 
 def main():
-    st.set_option('deprecation.showPyplotGlobalUse', False)
+    # st.set_option('deprecation.showPyplotGlobalUse', False)
 
     st.markdown("<h1 style='text-align: center; color: #2C3E50;'>🌐 Job Market Explorer</h1>", unsafe_allow_html=True)
     
