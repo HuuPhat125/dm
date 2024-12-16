@@ -153,6 +153,7 @@ def interactive_job_filter(df):
         st.warning("No jobs found matching the selected filters.")
 def truncate_text(text, max_length=200):
     """Truncate long text with ellipsis"""
+    max_length = max(max_length, len(text))
     return text[:max_length] + '...' if text and len(text) > max_length else text
 
 
