@@ -6,6 +6,7 @@ import plotly.express as px
 import plotly.graph_objs as go
 
 from utils.tab4 import plot_salary_distribution, plot_avg_salary, plot_avg_salary_by_tag
+from utils.job_recommendation import find_top_k_jobs, get_job_advice
 # Thiết lập theme và layout
 st.set_page_config(
     page_title="Job Market Insights", 
@@ -48,7 +49,7 @@ st.markdown("""
 
 def load_data():
     """Tải dữ liệu và xử lý"""
-    df = pd.read_csv('preprocessed_P_unique_job.csv')
+    df = pd.read_csv('./data/preprocessed_P_unique_job.csv')
     return df
 
 def create_job_distribution_plot(df, group_by, top_k=5):
@@ -89,14 +90,18 @@ def create_job_distribution_plot(df, group_by, top_k=5):
     )
     return fig
 
-def create_top_companies_plot(df, top_k=5):
-    """Tạo biểu đồ các công ty hàng đầu"""
+def create_top_companies_plot(df, category=None, top_k=5):
+    """Tạo biểu đồ các công ty hàng đầu theo danh mục (nếu có)"""
+    if category:
+        # Lọc dữ liệu theo danh mục
+        df = df[df['Job Category'] == category]
+
     top_companies = df['Company Name'].value_counts().head(top_k)
-    
+
     fig = px.bar(
         x=top_companies.index, 
         y=top_companies.values,
-        title=f"Top {top_k} Companies by Job Postings",
+        title=f"Top {top_k} Companies by Job Postings" + (f" in {category}" if category else ""),
         labels={'x': 'Company Name', 'y': 'Number of Jobs'},
         color=top_companies.values,
         color_continuous_scale='Viridis'
@@ -146,6 +151,10 @@ def interactive_job_filter(df):
         st.dataframe(filtered_df)
     else:
         st.warning("No jobs found matching the selected filters.")
+def truncate_text(text, max_length=200):
+    """Truncate long text with ellipsis"""
+    return text[:max_length] + '...' if text and len(text) > max_length else text
+
 
 def main():
     # st.set_option('deprecation.showPyplotGlobalUse', False)
@@ -154,9 +163,11 @@ def main():
     
     # Load dữ liệu
     df = load_data()
-    
+    # Load IT data
+    df_IT = pd.read_csv('./data/IT_jobs_translated.csv')
+
     # Tạo tab
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Job Distribution", "🏢 Company Insights", "🔍 Job Search", "💸 Explore Salary"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Job Distribution", "🏢 Company Insights", "🔍 Job Search", "💸 Explore Salary", "🎯 Job Recommendation"])
     
     with tab1:
         st.subheader("📊 Job Distribution Analysis")
@@ -176,8 +187,10 @@ def main():
     with tab2:
         st.subheader("🏢 Top Companies Insights")
 
+        category = st.selectbox("Select a job category to view the top company", ['All'] + list(df['Job Category'].unique()))
+        category = None if category == 'All' else category
         top_k = st.slider("Number of Top Companies", 3, 10, 5)
-        fig_companies = create_top_companies_plot(df, top_k)
+        fig_companies = create_top_companies_plot(df, category, top_k)
         st.plotly_chart(fig_companies, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
     
@@ -216,5 +229,90 @@ def main():
                 topk = st.slider("Select top k to show", 3, 10, 5)
             fig = plot_avg_salary_by_tag(df,top_k=topk, category=job_cat)
             st.pyplot(fig)
+
+
+    with tab5:
+        st.subheader("🎯 Job Recommendation")
+
+        # Create two columns for input fields
+        col1, col2 = st.columns(2)
+
+        with col1:
+            description_query = st.text_input(
+                "Job Description", 
+                value="triển khai các mô hình NLP, RAG, nghiên cứu phát triển sản phẩm mới để tích hợp vào hệ thống phần mềm' # muốn làm công việc gì", 
+                placeholder="Enter the job description you are looking for",
+            )
+            k = st.slider(
+                "Number of Results", 
+                min_value=1, 
+                max_value=10, 
+                value=5,
+                help="Select how many job recommendations to display"
+            )
+        with col2:
+            experiences_query = st.text_input(
+                "Experiences", 
+                value="", 
+                placeholder="Enter the experiences and jobs you have done"
+            )
+            benefits_query = st.text_input(
+                "Job Benefits", 
+                value="", 
+                placeholder="Enter the benefits you want to receive or what you expect from the company"
+            )
+
+        # Search Button with Custom Styling
+        search_button = st.button("🔎Find Jobs", use_container_width=True)
+
+        if search_button:
+            # Call your existing find_top_k_jobs function
+            result = find_top_k_jobs(df_IT, description_query, experiences_query, benefits_query, k)
+
+            if not result.empty:
+                # Use Streamlit's expander for cleaner UI
+                st.markdown("### 📋 Top Job Matches")
+                
+                for idx, row in result.iterrows():
+                    # Convert row to dictionary for easier passing
+                    job_details = row.to_dict()
+                    
+                    # Create a unique key for each job's advice button
+                    advice_key = f"advice_button_{idx}"
+                    
+                    # Create columns for job title and advice button
+                    title_col, advice_col = st.columns([5, 1])
+                    
+                    with title_col:
+                        with st.expander(row['Title']):  # Display full job title
+                            col_left, col_right = st.columns([1, 1])
+                            
+                            with col_left:
+                                st.write("**Company**", row['Company'])
+                                st.write("**Salary**", row['Salary'])
+                                st.write("**Experience**", row['Experience'])
+                            
+                            with col_right:
+                                st.write("**Description:**")
+                                st.write(truncate_text(row['Description']))
+                                
+                                st.write("**Requirements:**")
+                                st.write(truncate_text(row['Requirements']))
+                                
+                                st.write("**Benefits:**")
+                                st.write(truncate_text(row['Benefits']))
+                    
+                    with advice_col:
+                        # Advice button
+                        if st.button("🤝 Get Advice", key=advice_key):
+                            # Generate and display personalized advice
+                            advice = get_job_advice(job_details, experiences_query)
+                            
+                            # Use an expander for the advice
+                            with st.expander("Personalized Job Advice"):
+                                st.markdown(advice)
+            else:
+                st.warning("No matching jobs found. Try different search terms.")
+
 if __name__ == '__main__':
     main()

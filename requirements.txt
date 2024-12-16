@@ -4,3 +4,5 @@ matplotlib
 seaborn
 plotly
 numpy
+scikit-learn
+deep_translator

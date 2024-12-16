@@ -1,9 +1,11 @@
 import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
 import seaborn as sns
 import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-#@title Salary Range của mỗi Category
+
 def plot_salary_distribution(df, category="công nghệ thông tin"):
     """
     Plot the salary distribution for a specific job category.
@@ -35,7 +37,7 @@ def plot_salary_distribution(df, category="công nghệ thông tin"):
     ax.set_ylabel('Frequency', fontsize=12)
     plt.tight_layout()
     return fig  # Trả về Figure
-
+    
 def plot_avg_salary(df, top_k=5, category='Job Category', by_max_salary=False):
     """
     Returns a Matplotlib figure object for rendering in web applications.
