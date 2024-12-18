@@ -7,4 +7,3 @@ numpy
 scikit-learn
 deep_translator
 google-generativeai
-time
