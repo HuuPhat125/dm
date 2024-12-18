@@ -6,8 +6,8 @@ import plotly.express as px
 import plotly.graph_objs as go
 
 from utils.tab4 import plot_salary_distribution, plot_avg_salary, plot_avg_salary_by_tag
-from utils.job_recommendation import find_top_k_jobs, get_job_advice
-# Thiết lập theme và layout
+from utils.job_recommendation import find_top_k_jobs
+from utils.get_advice import get_job_advice
 st.set_page_config(
     page_title="Job Market Insights", 
     page_icon="💼", 
@@ -101,7 +101,7 @@ def create_top_companies_plot(df, category=None, top_k=5):
         df = df[df['Job Category'] == category]
 
     top_companies = df['Company Name'].value_counts().head(top_k)
-    print(top_companies)
+    # print(top_companies)
     fig = px.bar(
         x=top_companies.index, 
         y=top_companies.values,
@@ -238,98 +238,104 @@ def main():
 
     with tab5:
         st.subheader("🎯 Job Recommendation")
+        
+        with st.form("job_search_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                description_query = st.text_input(
+                    "Job Description", 
+                    value="triển khai các mô hình NLP, RAG, nghiên cứu phát triển sản phẩm mới để tích hợp vào hệ thống phần mềm", 
+                    placeholder="Enter the job description you are looking for",
+                )
+                k = st.slider(
+                    "Number of Results", 
+                    min_value=1, 
+                    max_value=10, 
+                    value=5,
+                    help="Select how many job recommendations to display"
+                )
+            with col2:
+                experiences_query = st.text_input(
+                    "Experiences", 
+                    value="", 
+                    placeholder="Enter the experiences and jobs you have done"
+                )
+                benefits_query = st.text_input(
+                    "Job Benefits", 
+                    value="", 
+                    placeholder="Enter the benefits you want to receive or what you expect from the company"
+                )
 
-        # Create two columns for input fields
-        col1, col2 = st.columns(2)
-
-        with col1:
-            description_query = st.text_input(
-                "Job Description", 
-                value="triển khai các mô hình NLP, RAG, nghiên cứu phát triển sản phẩm mới để tích hợp vào hệ thống phần mềm", 
-                placeholder="Enter the job description you are looking for",
-            )
-            k = st.slider(
-                "Number of Results", 
-                min_value=1, 
-                max_value=10, 
-                value=5,
-                help="Select how many job recommendations to display"
-            )
-        with col2:
-            experiences_query = st.text_input(
-                "Experiences", 
-                value="", 
-                placeholder="Enter the experiences and jobs you have done"
-            )
-            benefits_query = st.text_input(
-                "Job Benefits", 
-                value="", 
-                placeholder="Enter the benefits you want to receive or what you expect from the company"
-            )
-
-        # Search Button with Custom Styling
-        search_button = st.button("🔎Find Jobs", use_container_width=True)
+            search_button = st.form_submit_button("🔎Find Jobs", use_container_width=True)
 
         if search_button:
-            # Call your existing find_top_k_jobs function
-            result = find_top_k_jobs(df_IT, description_query, experiences_query, benefits_query, k)
 
+            st.session_state["job_results"] = None
+            for key in list(st.session_state.keys()):
+                if key.startswith("advice_button_"):
+                    del st.session_state[key]
+
+            result = find_top_k_jobs(df_IT, description_query, experiences_query, benefits_query, k)
             if not result.empty:
-                # Use Streamlit's expander for cleaner UI
-                st.markdown("### 📋 Top Job Matches")
-                
-                for idx, row in result.iterrows():
-                    # Convert row to dictionary for easier passing
-                    job_details = row.to_dict()
-                    
-                    # Create a unique key for each job's advice button
-                    advice_key = f"advice_button_{idx}"
-                    
-                    # Create columns for job title and advice button
-                    title_col, advice_col = st.columns([5, 1])
-                    
-                    with title_col:
-                        with st.expander(row['Title']): 
-                            col_left, col_right = st.columns([1, 1])
-                            
-                            with col_left:
-                                st.write("**Company**", row['Company'])
-                                st.write("**Salary**", row['Salary'])
-                                st.write("**Experience**", row['Experience'])
-                            
-                            with col_right:
-                                st.write("**Description:**")
-                                st.write(truncate_text(row['Description']))
-                                
-                                st.write("**Requirements:**")
-                                st.write(truncate_text(row['Requirements']))
-                                
-                                st.write("**Benefits:**")
-                                st.write(truncate_text(row['Benefits']))
-                    
-                    with advice_col:
-                        # Advice button
-                        st.write(advice_key)
-                        advise_button = st.button("🤝 Get Advice", key=advice_key)
-                        if advise_button:
-                            try:
-                                # Generate and display personalized advice
-                                print(f'{job_details=}')
-                                print(f'{description_query=}')
-                                advice = get_job_advice(job_details, description_query)
-                                
-                                # Debug: Print advice to console
-                                print("Generated Advice:", advice)
-                                
-                                # Use st.markdown to display the advice
-                                st.markdown(advice, unsafe_allow_html=True)
-                            except Exception as e:
-                                # If there's an error, show it to the user
-                                st.error(f"An error occurred while generating advice: {str(e)}")
-                                print(f"Error in get_job_advice: {e}")
-                        
+                st.session_state["job_results"] = result
             else:
                 st.warning("No matching jobs found. Try different search terms.")
+
+        result = st.session_state.get("job_results", None)
+        if result is not None:
+            # Use Streamlit's expander for cleaner UI
+            st.markdown("### 📋 Top Job Matches")
+            
+            for idx, row in result.iterrows():
+                
+                # Create a unique key for each job's advice button
+                advice_key = f"advice_button_{idx}"
+                
+                # Create columns for job title and advice button
+                title_col, advice_col = st.columns([3, 1])
+                
+                with title_col:
+                    with st.expander(row['Title']): 
+                        col_left, col_right = st.columns([1, 1])
+                        
+                        with col_left:
+                            st.write("**Company**", row['Company'])
+                            st.write("**Salary**", row['Salary'])
+                            st.write("**Experience**", row['Experience'])
+                        
+                        with col_right:
+                            st.write("**Description:**")
+                            st.write(truncate_text(row['Description']))
+                            
+                            st.write("**Requirements:**")
+                            st.write(truncate_text(row['Requirements']))
+                            
+                            st.write("**Benefits:**")
+                            st.write(truncate_text(row['Benefits']))
+                # Initialize session state for advice buttons
+                if "advice_buttons" not in st.session_state:
+                    st.session_state["advice_buttons"] = {}
+
+                advice_key = f"advice_button_{idx}"
+
+                # Initialize advice state for this button if not already done
+                if advice_key not in st.session_state["advice_buttons"]:
+                    st.session_state["advice_buttons"][advice_key] = None
+
+                with advice_col:
+                    advise_button = st.button("🤝 Get Advice", key=advice_key, use_container_width=True)
+
+                    if advise_button:
+                        try:
+                            # Generate advice and save it in session state
+                            advice = get_job_advice(row['Requirements'], experiences_query)
+                            st.session_state["advice_buttons"][advice_key] = advice
+                        except Exception as e:
+                            st.error(f"An error occurred while generating advice: {str(e)}")
+                    
+                    if st.session_state["advice_buttons"].get(advice_key):
+                        with st.expander('Advice for you'):
+                            st.write(st.session_state["advice_buttons"][advice_key], unsafe_allow_html=True)
 
 if __name__ == '__main__':
     main()
