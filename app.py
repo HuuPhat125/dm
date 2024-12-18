@@ -54,7 +54,7 @@ def load_data():
 
 def create_job_distribution_plot(df, group_by, top_k=5):
     """Tạo biểu đồ phân phối công việc với Plotly"""
-    if group_by == "new_tags":
+    if group_by != 'Job Category':
         job_category = st.selectbox(
             "Select Job Category for Tags Analysis", 
             ['All'] + list(df['Job Category'].unique())
@@ -64,9 +64,13 @@ def create_job_distribution_plot(df, group_by, top_k=5):
         else: 
             df_filtered = df[df['Job Category'] == job_category]
         
-        df_filtered['new_tags'] = df_filtered['new_tags'].str.split(';')
-        df_exploded = df_filtered.explode('new_tags')
-        counts = df_exploded['new_tags'].value_counts()
+        
+        if group_by == 'tags':
+            df_filtered['new_tags'] = df_filtered['new_tags'].str.split(';')
+            df_exploded = df_filtered.explode('new_tags')
+            counts = df_exploded['new_tags'].value_counts()
+        else:
+            counts = df_filtered[group_by].value_counts()
     else:
         counts = df[group_by].value_counts()
 
@@ -97,7 +101,7 @@ def create_top_companies_plot(df, category=None, top_k=5):
         df = df[df['Job Category'] == category]
 
     top_companies = df['Company Name'].value_counts().head(top_k)
-
+    print(top_companies)
     fig = px.bar(
         x=top_companies.index, 
         y=top_companies.values,
@@ -176,7 +180,7 @@ def main():
         col1, col2 = st.columns(2)
         with col1:
             group_by = st.selectbox("Group Jobs By", 
-                ["Job Category", "Location", "Experience", "new_tags"])
+                ["Job Category", "Location", "Experience", "tags"])
         with col2:
             top_k = st.slider("Top Categories", 3, 50, 10)
         
@@ -241,7 +245,7 @@ def main():
         with col1:
             description_query = st.text_input(
                 "Job Description", 
-                value="triển khai các mô hình NLP, RAG, nghiên cứu phát triển sản phẩm mới để tích hợp vào hệ thống phần mềm' # muốn làm công việc gì", 
+                value="triển khai các mô hình NLP, RAG, nghiên cứu phát triển sản phẩm mới để tích hợp vào hệ thống phần mềm", 
                 placeholder="Enter the job description you are looking for",
             )
             k = st.slider(
@@ -285,7 +289,7 @@ def main():
                     title_col, advice_col = st.columns([5, 1])
                     
                     with title_col:
-                        with st.expander(row['Title']):  # Display full job title
+                        with st.expander(row['Title']): 
                             col_left, col_right = st.columns([1, 1])
                             
                             with col_left:
@@ -305,13 +309,25 @@ def main():
                     
                     with advice_col:
                         # Advice button
-                        if st.button("🤝 Get Advice", key=advice_key):
-                            # Generate and display personalized advice
-                            advice = get_job_advice(job_details, experiences_query)
-                            
-                            # Use an expander for the advice
-                            with st.expander("Personalized Job Advice"):
-                                st.markdown(advice)
+                        st.write(advice_key)
+                        advise_button = st.button("🤝 Get Advice", key=advice_key)
+                        if advise_button:
+                            try:
+                                # Generate and display personalized advice
+                                print(f'{job_details=}')
+                                print(f'{description_query=}')
+                                advice = get_job_advice(job_details, description_query)
+                                
+                                # Debug: Print advice to console
+                                print("Generated Advice:", advice)
+                                
+                                # Use st.markdown to display the advice
+                                st.markdown(advice, unsafe_allow_html=True)
+                            except Exception as e:
+                                # If there's an error, show it to the user
+                                st.error(f"An error occurred while generating advice: {str(e)}")
+                                print(f"Error in get_job_advice: {e}")
+                        
             else:
                 st.warning("No matching jobs found. Try different search terms.")
 

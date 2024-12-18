@@ -1,5 +1,8 @@
+import numpy as np
+import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from deep_translator import GoogleTranslator
 
 def find_top_k_jobs(df, description_query, requirements_query, benefits_query, k=5):
     """
