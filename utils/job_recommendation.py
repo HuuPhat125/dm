@@ -20,10 +20,6 @@ def find_top_k_jobs(df, description_query, requirements_query, benefits_query, k
     Returns:
         pd.DataFrame: Top-k job postings sorted by average similarity score.
     """
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.metrics.pairwise import cosine_similarity
-    from deep_translator import GoogleTranslator
-    import numpy as np
 
     tfidf = TfidfVectorizer(stop_words='english')
 
