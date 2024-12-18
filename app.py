@@ -335,7 +335,7 @@ def main():
                     
                     if st.session_state["advice_buttons"].get(advice_key):
                         with st.expander('Advice for you'):
-                            st.write(st.session_state["advice_buttons"][advice_key], unsafe_allow_html=True)
+                            st.markdown(st.session_state["advice_buttons"][advice_key], unsafe_allow_html=True)
 
 if __name__ == '__main__':
     main()
