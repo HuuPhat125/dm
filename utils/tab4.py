@@ -164,3 +164,37 @@ def plot_avg_salary_by_tag(df, top_k=10, category=None):
 
     plt.tight_layout()
     return fig
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def avg_salary_by_experience(df, job_category=None):
+    df['min_salary'] = df['min_salary'].replace(-1.0, float('nan'))
+    df['max_salary'] = df['max_salary'].replace(-1.0, float('nan'))
+    df['avg_salary'] = df[['min_salary', 'max_salary']].mean(axis=1)
+
+    if job_category is not None:
+        df = df[df['Job Category'] == job_category]
+
+    role_counts = df['Job Category'].value_counts().head(5).index
+
+    top_roles = df[df['Job Category'].isin(role_counts)]
+
+    avg_salary_by_role_exp = (
+        top_roles
+        .groupby(['Experience', 'Job Category'])['avg_salary']
+        .mean()
+        .reset_index()
+    )
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.lineplot(x='Experience', y='avg_salary', hue='Job Category', data=avg_salary_by_role_exp, marker='o', ax=ax)
+    ax.set_title('year of experience by year of experience')
+    ax.set_xlabel('year of experience')
+    ax.set_ylabel('year of experience (milVNĐ)')
+    ax.set_xticks(range(int(avg_salary_by_role_exp['Experience'].min()), int(avg_salary_by_role_exp['Experience'].max()) + 1))
+    ax.legend(title='Job Category')
+    ax.grid(True)
+
+    return fig

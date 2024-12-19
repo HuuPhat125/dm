@@ -5,7 +5,7 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objs as go
 
-from utils.tab4 import plot_salary_distribution, plot_avg_salary, plot_avg_salary_by_tag
+from utils.tab4 import plot_salary_distribution, plot_avg_salary, plot_avg_salary_by_tag, avg_salary_by_experience
 from utils.job_recommendation import find_top_k_jobs
 from utils.get_advice import get_job_advice
 st.set_page_config(
@@ -48,7 +48,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def load_data():
-    """Tải dữ liệu và xử lý"""
     df = pd.read_csv('./data/preprocessed_P_unique_job.csv')
     return df
 
@@ -208,7 +207,7 @@ def main():
     with tab4:
         st.subheader("💸 Explore Salary")
 
-        sub_tab1 = st.selectbox("What do you want to explore", ["Salary distribution", "Average salary", "Average on tags"])
+        sub_tab1 = st.selectbox("What do you want to explore", ["Salary distribution", "Average salary", "Average by YoE", "Average on tags"])
     
         if sub_tab1 == "Salary distribution":
             category = st.selectbox("Select a job category to view the salary distribution", list(df['Job Category'].unique()))
@@ -224,6 +223,11 @@ def main():
             with col3:
                 topk = st.slider("Top k popular", 3, 10, 5)
             fig = plot_avg_salary(df, top_k=topk, category=feature, by_max_salary=sort_by)
+            st.pyplot(fig)
+        elif sub_tab1 == "Average by YoE":
+            job_cat = st.selectbox("Select a job category to view the salary distribution", ['All'] + list(df['Job Category'].unique()))
+            job_cat = None if job_cat == 'All' else job_cat
+            fig = avg_salary_by_experience(df, job_cat)
             st.pyplot(fig)
         elif sub_tab1 ==  "Average on tags":
             col1, col2 = st.columns(2)
@@ -271,9 +275,7 @@ def main():
         if search_button:
 
             st.session_state["job_results"] = None
-            for key in list(st.session_state.keys()):
-                if key.startswith("advice_button_"):
-                    del st.session_state[key]
+            st.session_state["advice_buttons"] = {}
 
             result = find_top_k_jobs(df_IT, description_query, experiences_query, benefits_query, k)
             if not result.empty:
@@ -292,11 +294,11 @@ def main():
                 advice_key = f"advice_button_{idx}"
                 
                 # Create columns for job title and advice button
-                title_col, advice_col = st.columns([3, 1])
+                title_col, advice_col = st.columns([3, 2])
                 
                 with title_col:
                     with st.expander(row['Title']): 
-                        col_left, col_right = st.columns([1, 1])
+                        col_left, col_right = st.columns([1, 2])
                         
                         with col_left:
                             st.write("**Company**", row['Company'])

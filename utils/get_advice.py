@@ -4,8 +4,10 @@ import google.generativeai as genai
 
 def verify_response(response):
     if response == "" or response is None:
+        print(response)
         return 'An error occurred, please try again later'
     if "429 Quota exceeded for quota metric" in response:
+        print(response)
         return 'An error occurred, please try again later'
     if isinstance(response, str):
         response = response.strip()
@@ -29,6 +31,7 @@ class Gemini_Model:
             except Exception as e:
                 if self.sleep_time > 0:
                     time.sleep(self.sleep_time)
+                print(e)
         return 'An error occurred, please try again later'
 
 api_key = os.getenv("API_KEY")
@@ -39,9 +42,9 @@ def get_job_advice(job_requirements, experiences_query):
         return 'Please enter the your experiences to get the usefull advice'
     # job_requirements = job_details['Requirements']
     prompt = f'''
-            Base on job requirements and user experiences, give an usefull advice, what user need to improve to meet job requirements.
-            job requirements: {job_requirements}.
-            user experiences: {experiences_query}.
+            Base on job requirements and my experiences, give an usefull advice, what I need to improve to meet job requirements.\n
+            job requirements: {job_requirements}.\n
+            My experiences: {experiences_query}.\n
             Advice:
         '''
     advice = model.get_response(prompt)
