@@ -1,4 +1,6 @@
 import pandas as pd
+import joblib
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
@@ -158,6 +160,54 @@ def truncate_text(text, max_length=200):
     """Truncate long text with ellipsis"""
     max_length = max(max_length, len(str(text)))
     return text[:max_length] + '...' if text and len(str(text)) > max_length else text
+@st.cache_data
+def load_salary_models(df, model="Linear Regression", transformation="None"):
+    """Load the trained salary prediction models"""
+    model = "ln" if model == "Linear Regression" else "rf"
+    if transformation == "None":
+        transformation = "none"
+    elif transformation == "Log":
+        transformation = "log"
+    else:
+        transformation = "boxcox"
+    min_salary_model = joblib.load(f"./models/{model}_min_salary_{transformation}.pkl")
+    max_salary_model = joblib.load(f"./models/{model}_max_salary_{transformation}.pkl")
+    if model == "ln" and transformation == "none":
+        one_hot_encoder = joblib.load("./models/ohe.pkl")
+        multilabel_binarizer = joblib.load("./models/mlb.pkl")
+    else:
+        one_hot_encoder = joblib.load("./models/ohe_new.pkl")
+        multilabel_binarizer = joblib.load("./models/mlb_new.pkl")
+    min_pt, max_pt = None, None
+    if transformation == "boxcox":
+        min_pt = joblib.load("./models/min_pt.pkl")
+        max_pt = joblib.load("./models/max_pt.pkl")
+    salary_df = df[(df['min_salary'] > 0) & (df['max_salary'] > 0)].drop(['Job ID', 'Posted Date', 'Job Position'], axis=1)
+    return salary_df, min_salary_model, max_salary_model, one_hot_encoder, multilabel_binarizer, min_pt, max_pt
+
+def get_tags_for_category(df, category):
+    """Get available tags for a specific job category"""
+    category_df = df[df['Job Category'] == category]
+    all_tags = set()
+    for tags_str in category_df['new_tags'].dropna():
+        tags = [tag.strip() for tag in tags_str.split(';')]
+        all_tags.update(tags)
+    return sorted(all_tags)
+
+def prepare_input_data(input_features, one_hot_encoder, multilabel_binarizer):
+    """Prepare input data for prediction"""
+    # Create a DataFrame with the input features
+    input_df = pd.DataFrame([input_features])
+    categorical_features = input_df[['Location', 'Job Category']]
+    categorical_encoded = one_hot_encoder.transform(categorical_features)
+    categorical_encoded_df = pd.DataFrame(categorical_encoded, columns=one_hot_encoder.get_feature_names_out(), index=input_df.index)
+    tags_encoded = multilabel_binarizer.transform(input_df['new_tags'])
+    tags_df = pd.DataFrame(tags_encoded, columns=multilabel_binarizer.classes_)
+    return pd.concat([input_df['Experience'], categorical_encoded_df, tags_df], axis=1)
+
+def format_salary_prediction(prediction):
+    """Format salary prediction to VND with proper formatting"""
+    return f"{prediction:,.1f} Million VND"
 
 
 def main():
@@ -171,7 +221,7 @@ def main():
     df_IT = pd.read_csv('./data/IT_jobs_translated.csv')
 
     # Tạo tab
-    tab1, tab3, tab4, tab5 = st.tabs(["📊 Job Distribution", "🔍 Job Search", "💸 Explore Salary", "🎯 Job Recommendation"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📊 Job Distribution", "🏢 Company Insights", "🔍 Job Search", "💸 Explore Salary", "🎯 Job Recommendation", "💰 Salary Prediction"])
     
     with tab1:
         st.subheader("📊 Job Distribution Analysis")
@@ -188,15 +238,15 @@ def main():
         st.plotly_chart(fig, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
     
-    # with tab2:
-    #     st.subheader("🏢 Top Companies Insights")
+    with tab2:
+        st.subheader("🏢 Top Companies Insights")
 
-    #     category = st.selectbox("Select a job category to view the top company", ['All'] + list(df['Job Category'].unique()))
-    #     category = None if category == 'All' else category
-    #     top_k = st.slider("Number of Top Companies", 3, 10, 5)
-    #     fig_companies = create_top_companies_plot(df, category, top_k)
-    #     st.plotly_chart(fig_companies, use_container_width=True)
-    #     st.markdown("</div>", unsafe_allow_html=True)
+        category = st.selectbox("Select a job category to view the top company", ['All'] + list(df['Job Category'].unique()))
+        category = None if category == 'All' else category
+        top_k = st.slider("Number of Top Companies", 3, 10, 5)
+        fig_companies = create_top_companies_plot(df, category, top_k)
+        st.plotly_chart(fig_companies, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
     
     with tab3:
         # st.markdown("<div class='highlight'>", unsafe_allow_html=True)
@@ -218,10 +268,11 @@ def main():
             with col1:
                 feature = st.selectbox("Select a feature to view the average salary.", ["Job Category", "Location", "Experience"])
             with col2:
-                sort_by = st.selectbox("Sort by.", ['mean salary', "min salary", "max salary"])
+                sort_by = st.selectbox("Sort by.", ["Salary", "Feature"])
+                sort_by = True if sort_by == 'Salary' else False
             with col3:
                 topk = st.slider("Top k popular", 3, 10, 5)
-            fig = plot_avg_salary(df, top_k=topk, category=feature, sort_by=sort_by)
+            fig = plot_avg_salary(df, top_k=topk, category=feature, by_max_salary=sort_by)
             st.pyplot(fig)
         elif sub_tab1 == "Average by YoE":
             job_cat = st.selectbox("Select a job category to view the salary distribution", ['All'] + list(df['Job Category'].unique()))
@@ -337,6 +388,132 @@ def main():
                     if st.session_state["advice_buttons"].get(advice_key):
                         with st.expander('Advice for you'):
                             st.markdown(st.session_state["advice_buttons"][advice_key], unsafe_allow_html=True)
+
+    with tab6:
+        st.subheader("💰 Salary Prediction")
+        col1, col2 = st.columns(2)
+        with col1:
+            model = st.selectbox("Choose Model", ["Linear Regression", "Random Forest"])
+        with col2:
+            transformation = st.selectbox("Transformation method", ["None", "Log", "Boxcox"])
+        # Load the models
+        salary_df, min_salary_model, max_salary_model, one_hot_encoder, multilabel_binarizer, min_pt, max_pt = load_salary_models(df, model, transformation)
+        
+        if None in (min_salary_model, max_salary_model, one_hot_encoder, multilabel_binarizer):
+            st.error("Unable to load salary prediction models. Please check if model files exist.")
+            return
+        
+        # Create input form
+        # with st.form("salary_prediction_form"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Job Category selection outside the form
+            job_category = st.selectbox(
+                "Job Category",
+                options=salary_df['Job Category'].unique(),
+            )
+            
+            # Get and display tags for selected category
+            available_tags = get_tags_for_category(salary_df, job_category)
+            tags = st.multiselect(
+                "Skills/Technologies",
+                options=available_tags,
+            )
+                
+        with col2:
+            location = st.selectbox(
+                "Location",
+                options=salary_df['Location'].unique()
+            )
+            
+            experience = st.selectbox(
+                "Experience Level",
+                options=sorted(salary_df['Experience'].unique())
+            )
+        
+        predict_button = st.button("Predict Salary Range", use_container_width=True)
+        
+        if predict_button:
+            try:
+                # Prepare input features
+                input_features = {
+                    'Location': location,
+                    'Job Category': job_category,
+                    'Experience': experience,
+                    'new_tags': tags  # Using number of tags as a feature
+                }
+                
+                # Prepare input data
+                input_df = prepare_input_data(input_features, one_hot_encoder, multilabel_binarizer)
+                
+                # Make predictions
+                min_salary_pred = min_salary_model.predict(input_df)[0]
+                max_salary_pred = max_salary_model.predict(input_df)[0]
+                if transformation == "Log":
+                    min_salary_pred = np.exp(min_salary_pred)
+                    max_salary_pred = np.exp(max_salary_pred)
+                elif transformation == "Boxcox":
+                    min_salary_pred = min_pt.inverse_transform(np.array([[min_salary_pred]]))[0][0]
+                    max_salary_pred = max_pt.inverse_transform(np.array([[max_salary_pred]]))[0][0]
+                if min_salary_pred > max_salary_pred:
+                    min_salary_pred = max_salary_pred
+                
+                # Display predictions
+                st.markdown("---")
+                st.markdown("### Predicted Salary Range")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.metric(
+                        label="Minimum Salary",
+                        value=format_salary_prediction(min_salary_pred)
+                    )
+                
+                with col2:
+                    st.metric(
+                        label="Maximum Salary",
+                        value=format_salary_prediction(max_salary_pred)
+                    )
+                
+                # Display additional insights
+                st.markdown("---")
+                st.markdown("### 📊 Salary Insights")
+                
+                # Calculate average actual salaries for comparison
+                similar_jobs = df[
+                    (df['Job Category'] == job_category) &
+                    (df['Location'] == location) &
+                    (df['Experience'] == experience)
+                ]
+                similar_jobs.drop(['Job ID', 'Posted Date', 'Job Position'], axis=1, inplace=True)
+                similar_jobs['min_salary'] = similar_jobs['min_salary'].apply(lambda x: x if x != -1 else "Thỏa thuận")
+                similar_jobs['max_salary'] = similar_jobs['max_salary'].apply(lambda x: x if x != -1 else "Thỏa thuận")
+                similar_jobs = similar_jobs[similar_jobs['new_tags'].apply(lambda x: all(tag in str(x).split(";") for tag in tags))]
+                if not similar_jobs.empty:
+                    st.write("#### Similar Jobs Statistics")
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.metric(
+                            "Average Min Salary",
+                            format_salary_prediction(similar_jobs[(similar_jobs['min_salary'] != "Thỏa thuận") & (similar_jobs['max_salary'] != "Thỏa thuận")]['min_salary'].mean())
+                        )
+                    with col2:
+                        st.metric(
+                            "Average Max Salary",
+                            format_salary_prediction(similar_jobs[(similar_jobs['min_salary'] != "Thỏa thuận") & (similar_jobs['max_salary'] != "Thỏa thuận")]['max_salary'].mean())
+                        )
+                    with col3:
+                        st.metric(
+                            "Number of Similar Jobs",
+                            len(similar_jobs)
+                        )
+                    st.dataframe(similar_jobs)
+                
+            except Exception as e:
+                st.error(f"An error occurred during prediction: {str(e)}")
+        
 
 if __name__ == '__main__':
     main()
