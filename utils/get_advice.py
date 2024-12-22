@@ -42,10 +42,7 @@ def get_job_advice(job_requirements, experiences_query):
         return 'Please enter the your experiences to get the usefull advice'
     # job_requirements = job_details['Requirements']
     prompt = f'''
-            Base on job requirements and my experiences, give an usefull advice, what I need to improve to meet job requirements.\n
-            job requirements: {job_requirements}.\n
-            My experiences: {experiences_query}.\n
-            Advice:
+            Base on job requirements and my experiences, give an usefull advice, what I need to improve to meet job requirements.\njob requirements: {job_requirements}.\nMy experiences: {experiences_query}.\nAdvice:
         '''
     advice = model.get_response(prompt)
     return advice

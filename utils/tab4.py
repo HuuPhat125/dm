@@ -37,39 +37,52 @@ def plot_salary_distribution(df, category="công nghệ thông tin"):
     ax.set_ylabel('Frequency', fontsize=12)
     plt.tight_layout()
     return fig  # Trả về Figure
-    
-def plot_avg_salary(df, top_k=5, category='Job Category', by_max_salary=False):
+
+def plot_avg_salary(df, top_k=5, category='Job Category', sort_by='mean salary'):
     """
     Returns a Matplotlib figure object for rendering in web applications.
+    Parameters:
+    - df: pandas DataFrame, input dataset containing salary and category data.
+    - top_k: int, number of top categories to display.
+    - category: str, column name for job categories.
+    - sort_by: str, criterion for sorting ('min_salary', 'max_salary', 'mean').
     """
-    # Lọc bỏ các giá trị ngoài phạm vi
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    if category == 'Location':
+        df = df[~df['Location'].isin(['Toàn Quốc', 'Miền Trung', 'Miền Bắc', 'Nước Ngoài'])]
+
     df_filtered = df[
         (df['min_salary'] <= 100) &
         (df['max_salary'] <= 100)
     ]
-    
-    # Xử lý giá trị -1 riêng cho từng cột
+
     df_filtered['min_salary'] = df_filtered['min_salary'].replace(-1, pd.NA)
     df_filtered['max_salary'] = df_filtered['max_salary'].replace(-1, pd.NA)
-    
-    # Tính tiền lương trung bình cho từng ngành nghề
+
     avg_salary = df_filtered.groupby(category).agg(
         avg_min_salary=('min_salary', 'mean'),
         avg_max_salary=('max_salary', 'mean')
     ).reset_index()
 
-    # Chuyển đổi kiểu dữ liệu của avg_max_salary và avg_min_salary sang kiểu float
-    avg_salary['avg_min_salary'] = pd.to_numeric(avg_salary['avg_min_salary'], errors='coerce')
-    avg_salary['avg_max_salary'] = pd.to_numeric(avg_salary['avg_max_salary'], errors='coerce')
-    
-    # Lọc ra top-k ngành nghề phổ biến nhất hoặc top-k theo max_salary
-    if by_max_salary:
-        avg_salary_filtered = avg_salary.nlargest(top_k, 'avg_max_salary')
+    # Thêm cột trung bình giữa min và max
+    avg_salary['avg_mean_salary'] = avg_salary[['avg_min_salary', 'avg_max_salary']].mean(axis=1)
+
+ 
+    for col in ['avg_min_salary', 'avg_max_salary', 'avg_mean_salary']:
+        avg_salary[col] = pd.to_numeric(avg_salary[col], errors='coerce')
+
+    if sort_by == 'min salary':
+        sort_column = 'avg_min_salary'
+    elif sort_by == 'max salary':
+        sort_column = 'avg_max_salary'
+    elif sort_by == 'mean salary':
+        sort_column = 'avg_mean_salary'
     else:
-        job_count = df_filtered[category].value_counts().head(top_k).index
-        avg_salary_filtered = avg_salary[avg_salary[category].isin(job_count)]
-    
-    # Kiểm tra dữ liệu
+        raise ValueError("Invalid value for sort_by. Use 'min_salary', 'max_salary', or 'mean'.")
+
+    avg_salary_filtered = avg_salary.nlargest(top_k, sort_column)
+
     if avg_salary_filtered.empty:
         print("No data available for plotting after filtering.")
         return None
@@ -78,9 +91,9 @@ def plot_avg_salary(df, top_k=5, category='Job Category', by_max_salary=False):
     x = avg_salary_filtered[category]
     min_salary = avg_salary_filtered['avg_min_salary']
     max_salary = avg_salary_filtered['avg_max_salary']
-    
+
     x_indices = range(len(x))
-    
+
     # Tạo Figure và Axes
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.bar(x_indices, min_salary, width=0.4, label='Min Salary', color='skyblue', align='center')
@@ -90,11 +103,70 @@ def plot_avg_salary(df, top_k=5, category='Job Category', by_max_salary=False):
     ax.set_xticklabels(x, rotation=45)
     ax.set_xlabel('Job Category')
     ax.set_ylabel('Salary (Millions VND)')
-    ax.set_title(f'Average Salary by {category} (Top {top_k} Popular){" with Max Salary" if by_max_salary else ""}')
+    ax.set_title(f'Average Salary by {category} (Top {top_k} by {sort_by.capitalize()})')
     ax.legend()
     plt.tight_layout()
 
     return fig  # Trả về Figure
+
+
+# def plot_avg_salary(df, top_k=5, category='Job Category', sort_by=False):
+#     """
+#     Returns a Matplotlib figure object for rendering in web applications.
+#     """
+#     # Lọc bỏ các giá trị ngoài phạm vi
+#     df_filtered = df[
+#         (df['min_salary'] <= 100) &
+#         (df['max_salary'] <= 100)
+#     ]
+    
+#     # Xử lý giá trị -1 riêng cho từng cột
+#     df_filtered['min_salary'] = df_filtered['min_salary'].replace(-1, pd.NA)
+#     df_filtered['max_salary'] = df_filtered['max_salary'].replace(-1, pd.NA)
+    
+#     # Tính tiền lương trung bình cho từng ngành nghề
+#     avg_salary = df_filtered.groupby(category).agg(
+#         avg_min_salary=('min_salary', 'mean'),
+#         avg_max_salary=('max_salary', 'mean')
+#     ).reset_index()
+
+#     # Chuyển đổi kiểu dữ liệu của avg_max_salary và avg_min_salary sang kiểu float
+#     avg_salary['avg_min_salary'] = pd.to_numeric(avg_salary['avg_min_salary'], errors='coerce')
+#     avg_salary['avg_max_salary'] = pd.to_numeric(avg_salary['avg_max_salary'], errors='coerce')
+    
+#     # Lọc ra top-k ngành nghề phổ biến nhất hoặc top-k theo max_salary
+#     if sort_by:
+#         avg_salary_filtered = avg_salary.nlargest(top_k, 'avg_max_salary')
+#     else:
+#         job_count = df_filtered[category].value_counts().head(top_k).index
+#         avg_salary_filtered = avg_salary[avg_salary[category].isin(job_count)]
+    
+#     # Kiểm tra dữ liệu
+#     if avg_salary_filtered.empty:
+#         print("No data available for plotting after filtering.")
+#         return None
+
+#     # Vẽ biểu đồ cột đôi
+#     x = avg_salary_filtered[category]
+#     min_salary = avg_salary_filtered['avg_min_salary']
+#     max_salary = avg_salary_filtered['avg_max_salary']
+    
+#     x_indices = range(len(x))
+    
+#     # Tạo Figure và Axes
+#     fig, ax = plt.subplots(figsize=(12, 6))
+#     ax.bar(x_indices, min_salary, width=0.4, label='Min Salary', color='skyblue', align='center')
+#     ax.bar([i + 0.4 for i in x_indices], max_salary, width=0.4, label='Max Salary', color='lightgreen', align='center')
+
+#     ax.set_xticks([i + 0.2 for i in x_indices])
+#     ax.set_xticklabels(x, rotation=45)
+#     ax.set_xlabel('Job Category')
+#     ax.set_ylabel('Salary (Millions VND)')
+#     ax.set_title(f'Average Salary by {category} (Top {top_k} Popular){" with Max Salary" if sort_by else ""}')
+#     ax.legend()
+#     plt.tight_layout()
+
+#     return fig  # Trả về Figure
 
 
 def plot_avg_salary_by_tag(df, top_k=10, category=None):
