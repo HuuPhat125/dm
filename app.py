@@ -221,7 +221,7 @@ def main():
     df_IT = pd.read_csv('./data/IT_jobs_translated.csv')
 
     # Tạo tab
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📊 Job Distribution", "🏢 Company Insights", "🔍 Job Search", "💸 Explore Salary", "🎯 Job Recommendation", "💰 Salary Prediction"])
+    tab1, tab3, tab4, tab5, tab6 = st.tabs(["📊 Job Distribution", "🔍 Job Search", "💸 Explore Salary", "🎯 Job Recommendation", "💰 Salary Prediction"])
     
     with tab1:
         st.subheader("📊 Job Distribution Analysis")
@@ -238,15 +238,15 @@ def main():
         st.plotly_chart(fig, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
     
-    with tab2:
-        st.subheader("🏢 Top Companies Insights")
+    # with tab2:
+    #     st.subheader("🏢 Top Companies Insights")
 
-        category = st.selectbox("Select a job category to view the top company", ['All'] + list(df['Job Category'].unique()))
-        category = None if category == 'All' else category
-        top_k = st.slider("Number of Top Companies", 3, 10, 5)
-        fig_companies = create_top_companies_plot(df, category, top_k)
-        st.plotly_chart(fig_companies, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+    #     category = st.selectbox("Select a job category to view the top company", ['All'] + list(df['Job Category'].unique()))
+    #     category = None if category == 'All' else category
+    #     top_k = st.slider("Number of Top Companies", 3, 10, 5)
+    #     fig_companies = create_top_companies_plot(df, category, top_k)
+    #     st.plotly_chart(fig_companies, use_container_width=True)
+    #     st.markdown("</div>", unsafe_allow_html=True)
     
     with tab3:
         # st.markdown("<div class='highlight'>", unsafe_allow_html=True)
