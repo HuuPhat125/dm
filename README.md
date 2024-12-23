@@ -1,3 +1,5 @@
+https://job-analysis-recommendation.streamlit.app/
+
 ## Overview
 This project focuses on leveraging data from TopCV to build predictive and recommendation systems. By crawling job postings and resumes from the platform, we aim to develop:
 
@@ -93,7 +95,7 @@ This project is licensed under the MIT License. See the LICENSE file for details
 - Open-source libraries and frameworks.
 
 ## Contact
-For questions or suggestions, please contact [phatd142@gmail.com].
+For questions or suggestions, please contact phatd142@gmail.com.
 
 
 ## Group 8
