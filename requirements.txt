@@ -1,9 +1,9 @@
-streamlit
-pandas
-matplotlib
-seaborn
-plotly
-numpy
+streamlit==1.27.2
+pandas==1.5.3
+matplotlib==3.7.1
+seaborn==0.12.2
+plotly==5.13.1
+numpy==1.23.5
 scikit-learn==1.2.2
-deep_translator
-google-generativeai
+deep-translator==1.9.2
+google-generativeai==0.2.0
